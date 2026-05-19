@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Professional Full-Stack Portfolio">
+    <title>DevPortfolio | Full-Stack Developer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <div class="container">
+            <div class="logo">&lt;DevPortfolio/&gt;</div>
+            <ul class="nav-links">
+                <li><a href="#home">Bosh sahifa</a></li>
+                <li><a href="#projects">Loyihalar</a></li>
+                <li><a href="#contact">Aloqa</a></li>
+            </ul>
+            <div class="burger">
+                <div></div><div></div><div></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section id="home">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge">🚀 Full-Stack Developer</div>
+                <h1>Salom, men <span class="auto-type"></span></h1>
+                <p>Men <span class="highlight">HTML, CSS, JavaScript</span> va <span class="highlight">Python</span> bilan zamonaviy veb-ilovalar yarataman. Har bir loyiha — yangi muammo, yangi yechim.</p>
+                <div class="hero-btns">
+                    <a href="#projects" class="btn primary">Loyihalarni ko‘rish →</a>
+                    <a href="#contact" class="btn secondary">Bog‘lanish</a>
+                </div>
+                <div class="stats" id="stats">
+                    <div class="stat">
+                        <span class="num" id="stat-projects">0</span>
+                        <span class="label">Loyiha</span>
+                    </div>
+                    <div class="stat">
+                        <span class="num" id="stat-exp">0</span>
+                        <span class="label">Oy tajriba</span>
+                    </div>
+                    <div class="stat">
+                        <span class="num" id="stat-tech">0</span>
+                        <span class="label">Texnologiya</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROJECTS SECTION -->
+    <section id="projects">
+        <div class="container">
+            <div class="section-header">
+                <h2>Tanlangan loyihalar</h2>
+                <p>Haqiqiy muammolarni hal qilish uchun yaratilgan loyihalar</p>
+            </div>
+            <div class="projects-grid" id="projects-grid">
+                <div class="loading">Yuklanmoqda...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT SECTION -->
+    <section id="contact">
+        <div class="container">
+            <div class="section-header">
+                <h2>Bog‘lanish</h2>
+                <p>Loyiha taklifi yoki shunchaki salom aytish uchun</p>
+            </div>
+            <div class="contact-wrapper">
+                <form id="contact-form">
+                    <div class="form-group">
+                        <input type="text" id="name" placeholder="Ismingiz" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="email" placeholder="Email manzilingiz" required>
+                    </div>
+                    <div class="form-group">
+                        <textarea id="message" rows="5" placeholder="Xabaringiz..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn primary" id="submit-btn">Yuborish</button>
+                    <div id="form-status"></div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <p>© 2025 DevPortfolio — Barcha huquqlar himoyalangan</p>
+            <div class="social-links">
+                <a href="#" target="_blank">GitHub</a>
+                <a href="#" target="_blank">LinkedIn</a>
+                <a href="#" target="_blank">Telegram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js"></script>
+    <script>
+        // Typing effect
+        var typed = new Typed('.auto-type', {
+            strings: ['Web Developer', 'Python Coder', 'UI/UX Enthusiast', 'Problem Solver'],
+            typeSpeed: 80,
+            backSpeed: 50,
+            loop: true
+        });
+    </script>
+</body>
+</html>
