@@ -2,27 +2,32 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
-from email.message import EmailMessage
-from email.utils import formataddr
-import json
 import os
-import re
 import smtplib
 import ssl
-import threading
-import urllib.request
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 
 app = Flask(__name__, static_folder='frontend', static_url_path='')
 CORS(app)
+
+# ==================== SOZLAMALAR ====================
+# Render/Railway'da Environment Variables orqali beriladi
+EMAIL_SENDER   = os.environ.get('EMAIL_SENDER', 'ilhomsubanqulov564@gmail.com')
+EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')          # Gmail App Password
+EMAIL_RECEIVER = os.environ.get('EMAIL_RECEIVER', 'ilhomsubanqulov564@gmail.com')
+SMTP_HOST      = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT      = int(os.environ.get('SMTP_PORT', 465))         # 465 = SSL
 
 # ==================== MA'LUMOTLAR ====================
 PROJECTS = [
     {
         "id": 1,
         "title": "E-Commerce Platform",
-        "description": "ToвЂliq funksional online doвЂkon. Flask backend, SQLite, admin panel.",
+        "description": "To‘liq funksional online do‘kon. Flask backend, SQLite, admin panel.",
         "tech": ["Python", "Flask", "SQLite", "HTML/CSS"],
-        "icon": "рџ›’",
+        "icon": "🛒",
         "live_url": "#",
         "code_url": "#"
     },
@@ -31,7 +36,7 @@ PROJECTS = [
         "title": "Weather Dashboard",
         "description": "OpenWeather API bilan real-time ob-havo. Interaktiv va responsive.",
         "tech": ["JavaScript", "API", "CSS Grid"],
-        "icon": "вЃпёЏ",
+        "icon": "☁️",
         "live_url": "#",
         "code_url": "#"
     },
@@ -40,22 +45,22 @@ PROJECTS = [
         "title": "Task Manager (Kanban)",
         "description": "Drag & drop, localStorage, kategoriyalar. Vazifalarni boshqarish.",
         "tech": ["JS", "Drag & Drop", "LocalStorage"],
-        "icon": "рџ“ќ",
+        "icon": "📝",
         "live_url": "#",
         "code_url": "#"
     },
     {
         "id": 4,
         "title": "Python Web Scraper",
-        "description": "BeautifulSoup + Selenium. MaвЂ™lumotlarni CSV/JSON ga saqlaydi.",
+        "description": "BeautifulSoup + Selenium. Ma’lumotlarni CSV/JSON ga saqlaydi.",
         "tech": ["Python", "BeautifulSoup", "Selenium"],
-        "icon": "рџ¤–",
+        "icon": "🤖",
         "live_url": "#",
         "code_url": "#"
     }
 ]
 
-MESSAGES = []  # Vaqtinchalik xotira (real loyihada DB ishlatiladi)
+MESSAGES = []
 
 STATS = {
     "projects": len(PROJECTS),
@@ -63,108 +68,106 @@ STATS = {
     "technologies": 9
 }
 
+# ==================== EMAIL YUBORISH ====================
+def send_email_notification(message: dict) -> bool:
+    """
+    Kontakt formasidan kelgan xabarni EMAIL_RECEIVER ga yuboradi.
+    Muvaffaqiyatli bo'lsa True, aks holda False qaytaradi.
+    """
+    if not EMAIL_PASSWORD:
+        print("⚠️  EMAIL_PASSWORD o'rnatilmagan — email yuborilmadi.")
+        return False
 
-# ==================== EMAIL SOZLAMALARI ====================
-# Maxfiy ma'lumotlar kodda emas, muhit o'zgaruvchilarida (Environment Variables) saqlanadi.
-OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "ilhomsubanqulov564@gmail.com")
-SMTP_USER = os.environ.get("SMTP_USER", OWNER_EMAIL)      # Gmail manzilingiz
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")       # Gmail "App Password" (16 ta belgi)
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 465))
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")     # ixtiyoriy (SMTP bloklangan hostinglar uchun)
+    try:
+        # --- Foydalanuvchiga javob xati (Reply-To) ---
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"📨 Yangi xabar: {message['name']} — Portfolio"
+        msg['From']    = formataddr(("Portfolio Bot", EMAIL_SENDER))
+        msg['To']      = EMAIL_RECEIVER
+        # Javob bersangiz to'g'ridan-to'g'ri foydalanuvchiga ketadi:
+        msg['Reply-To'] = formataddr((message['name'], message['email']))
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+        # --- Matnli versiya ---
+        text_body = f"""Yangi xabar keldi!
 
+👤 Ism:    {message['name']}
+📧 Email:  {message['email']}
+🕒 Vaqt:   {message['date']}
 
-def _clean(text, limit):
-    """Sarlavhalarga (header) begona qator qo'shishni (injection) oldini oladi."""
-    return re.sub(r"[\r\n]+", " ", str(text)).strip()[:limit]
+💬 Xabar:
+{message['message']}
 
+---
+Bu xabar DevPortfolio saytidagi kontakt formasi orqali yuborilgan.
+"""
 
-def _send_via_smtp(subject, body, reply_to):
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = formataddr(("Portfolio sayt", SMTP_USER))
-    msg["To"] = OWNER_EMAIL
-    msg["Reply-To"] = reply_to          # "Javob berish" bossangiz, to'g'ridan-to'g'ri mijozga ketadi
-    msg.set_content(body)
-    ctx = ssl.create_default_context()
-    if SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=20) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-    else:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-            server.starttls(context=ctx)
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
+        # --- HTML versiya (chiroyliroq) ---
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;">
+          <div style="max-width:600px; margin:auto; background:#fff; border-radius:12px;
+                      padding:24px; border:1px solid #e5e7eb;">
+            <h2 style="color:#3b82f6; margin-top:0;">📨 Yangi xabar keldi</h2>
+            <table style="width:100%; border-collapse:collapse;">
+              <tr><td style="padding:8px 0; color:#6b7280;">👤 Ism</td>
+                  <td style="padding:8px 0; font-weight:600;">{message['name']}</td></tr>
+              <tr><td style="padding:8px 0; color:#6b7280;">📧 Email</td>
+                  <td style="padding:8px 0;">
+                    <a href="mailto:{message['email']}">{message['email']}</a>
+                  </td></tr>
+              <tr><td style="padding:8px 0; color:#6b7280;">🕒 Vaqt</td>
+                  <td style="padding:8px 0;">{message['date']}</td></tr>
+            </table>
+            <hr style="border:none; border-top:1px solid #e5e7eb; margin:16px 0;">
+            <p style="color:#374151; white-space:pre-wrap;">{message['message']}</p>
+            <p style="color:#9ca3af; font-size:12px; margin-top:24px;">
+              Bu xabar DevPortfolio saytidagi kontakt formasi orqali yuborilgan.
+            </p>
+          </div>
+        </body>
+        </html>
+        """
 
+        msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
 
-def _send_via_resend(subject, body, reply_to):
-    payload = json.dumps({
-        "from": "Portfolio <onboarding@resend.dev>",
-        "to": [OWNER_EMAIL],
-        "reply_to": reply_to,
-        "subject": subject,
-        "text": body,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.resend.com/emails", data=payload, method="POST",
-        headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-    )
-    urllib.request.urlopen(req, timeout=20).read()
+        # --- SSL orqali yuborish ---
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_SENDER, [EMAIL_RECEIVER], msg.as_string())
 
+        print(f"✅ Email yuborildi → {EMAIL_RECEIVER}")
+        return True
 
-def send_notification(message):
-    """Yangi xabar kelganda egasining emailiga yuboradi (fon rejimida, sayt qotib qolmaydi)."""
-    subject = f"рџ“Ё Portfolio: {message['name']} dan yangi xabar"
-    body = (
-        f"Saytingiz orqali yangi xabar keldi.\n\n"
-        f"Ism:    {message['name']}\n"
-        f"Email:  {message['email']}\n"
-        f"Sana:   {message['date']}\n\n"
-        f"Xabar:\n{message['message']}\n"
-    )
+    except Exception as e:
+        print(f"❌ Email yuborishda xatolik: {e}")
+        return False
 
-    def worker():
-        try:
-            if SMTP_PASSWORD:
-                _send_via_smtp(subject, body, message["email"])
-            elif RESEND_API_KEY:
-                _send_via_resend(subject, body, message["email"])
-            else:
-                print("вљ пёЏ Email yuborilmadi: SMTP_PASSWORD yoki RESEND_API_KEY sozlanmagan")
-                return
-            print(f"вњ… Email yuborildi -> {OWNER_EMAIL}")
-        except Exception as e:
-            print(f"вќЊ Email yuborishda xatolik: {e}")
-
-    threading.Thread(target=worker, daemon=True).start()
 
 # ==================== API ENDPOINTS ====================
 @app.route('/')
 def serve_index():
-    """Frontend index.html ni koвЂrsatadi"""
     return send_from_directory('frontend', 'index.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    """CSS, JS va boshqa statik fayllarni qaytaradi"""
     return send_from_directory('frontend', path)
 
 @app.route('/api/health')
 def health():
-    """Backend ishlayotganligini tekshirish"""
-    return jsonify({"status": "online", "timestamp": datetime.now().isoformat()})
+    return jsonify({
+        "status": "online",
+        "email_configured": bool(EMAIL_PASSWORD),
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
-    """Barcha loyihalarni qaytaradi"""
     return jsonify(PROJECTS)
 
 @app.route('/api/projects/<int:project_id>', methods=['GET'])
 def get_project(project_id):
-    """ID boвЂyicha bitta loyiha"""
     project = next((p for p in PROJECTS if p["id"] == project_id), None)
     if project:
         return jsonify(project)
@@ -172,37 +175,42 @@ def get_project(project_id):
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    """Statistikani qaytaradi"""
     return jsonify(STATS)
 
 @app.route('/api/contact', methods=['POST'])
 def contact():
-    """Kontakt formadan kelgan xabarni qabul qiladi"""
+    """Kontakt formadan kelgan xabarni qabul qiladi va emailga yuboradi"""
     data = request.get_json(silent=True)
     if not data or not data.get('name') or not data.get('email') or not data.get('message'):
-        return jsonify({"success": False, "message": "Barcha maydonlarni toвЂldiring"}), 400
+        return jsonify({"success": False, "message": "Barcha maydonlarni to‘ldiring"}), 400
 
-    email = _clean(data['email'], 200)
-    if not EMAIL_RE.match(email):
-        return jsonify({"success": False, "message": "Email manzil notoвЂgвЂri"}), 400
+    # Oddiy email validatsiyasi
+    email = data['email'].strip()
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({"success": False, "message": "Email manzil noto‘g‘ri"}), 400
 
     message = {
         "id": len(MESSAGES) + 1,
-        "name": _clean(data['name'], 100),
-        "email": email,
-        "message": str(data['message']).strip()[:5000],
+        "name": data['name'].strip()[:100],
+        "email": email[:120],
+        "message": data['message'].strip()[:5000],
         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     MESSAGES.append(message)
 
-    # Konsolga chiqarish (Railway loglarida koвЂrinadi)
-    print(f"\nрџ“Ё New message from {message['name']} ({message['email']}):")
+    # Konsolga chiqarish (Render loglarida ko'rinadi)
+    print(f"\n📨 New message from {message['name']} ({message['email']}):")
     print(f"   {message['message']}\n")
 
     # Emailga yuborish
-    send_notification(message)
+    email_sent = send_email_notification(message)
 
-    return jsonify({"success": True, "message": "Xabar qabul qilindi! Tez orada javob beramiz."})
+    return jsonify({
+        "success": True,
+        "email_sent": email_sent,
+        "message": "Xabar qabul qilindi! Tez orada javob beramiz."
+    })
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
